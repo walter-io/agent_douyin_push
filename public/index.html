@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>抖音粉丝群消息推送</title>
+<style>
+  :root {
+    --bg: #F4F5F9;
+    --surface: #FFFFFF;
+    --surface-2: #F7F8FB;
+    --border: #E7EAF1;
+    --border-strong: #D8DDE8;
+    --text: #1A1D26;
+    --text-2: #5B6472;
+    --text-3: #98A1B2;
+    --accent: #2E5BFF;
+    --accent-hover: #1F49E0;
+    --accent-soft: #EEF2FF;
+    --green: #0FA968;
+    --green-soft: #E6F7F0;
+    --red-soft: #FDECEA;
+    --red: #C0362B;
+    --shadow: 0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.06);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 22px 40px; }
+  header.top { display: flex; align-items: baseline; gap: 14px; margin-bottom: 20px; }
+  header.top h1 { font-size: 21px; font-weight: 800; letter-spacing: .5px; }
+  header.top .muted { color: var(--text-3); font-size: 12.5px; }
+
+  .grid { display: grid; grid-template-columns: 420px 1fr; gap: 16px; align-items: start; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 16px;
+  }
+  .card h3 { font-size: 14.5px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card h3 .muted { font-weight: 400; font-size: 12px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .grow { flex: 1; }
+
+  .btn {
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    border-radius: 9px; padding: 8px 14px; font-size: 13.5px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; transition: all .15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: var(--accent-hover); color: #fff; }
+  .btn.green { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; padding: 11px 16px; font-size: 14.5px; width: 100%; }
+  .btn.green:hover { filter: brightness(1.06); color: #fff; }
+  .btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .btn.small { padding: 4px 10px; font-size: 12.5px; border-radius: 7px; }
+
+  textarea, input[type=text], select {
+    width: 100%; border: 1px solid var(--border-strong); border-radius: 9px;
+    padding: 9px 12px; font-size: 13.5px; font-family: inherit; color: var(--text);
+    background: var(--surface); outline: none; transition: border-color .15s;
+  }
+  textarea:focus, input[type=text]:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 150px; line-height: 1.7; }
+
+  /* 群列表 */
+  #group-list { max-height: 380px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+  .g-item { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .g-item:last-child { border-bottom: none; }
+  .g-item:hover { background: var(--accent-soft); }
+  .g-item input { width: 15px; height: 15px; accent-color: var(--accent); flex-shrink: 0; }
+  .g-item .name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; background: var(--green-soft); color: var(--green); font-weight: 700; flex-shrink: 0; }
+  .badge.all { background: var(--accent-soft); color: var(--accent); }
+  .empty-hint { color: var(--text-3); font-size: 12.5px; text-align: center; padding: 26px 14px; line-height: 1.9; }
+
+  .meta { color: var(--text-3); font-size: 12px; }
+
+  /* 消息记录行 */
+  .h-item { display: flex; gap: 9px; align-items: flex-start; padding: 7px 11px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .h-item:last-child { border-bottom: none; }
+  .h-item:hover { background: var(--accent-soft); }
+  .h-item .t { color: var(--text-3); font-size: 11.5px; flex-shrink: 0; width: 116px; font-family: Consolas, monospace; padding-top: 2px; }
+  .h-item .n { font-weight: 700; font-size: 12.5px; flex-shrink: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-item .m { color: var(--text-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .h-item .st { font-size: 11px; font-weight: 800; flex-shrink: 0; width: 34px; text-align: center; border-radius: 999px; padding: 0 5px; }
+  .h-item.ok .st { color: var(--green); background: var(--green-soft); }
+  .h-item.fail .st { color: var(--red); background: var(--red-soft); }
+  .logbox {
+    background: #0E1424; color: #8FE6B4; font-family: Consolas, "Courier New", monospace;
+    font-size: 12px; line-height: 1.75; border-radius: 10px; padding: 12px 14px;
+    overflow-y: auto; max-height: 240px; white-space: pre-wrap; word-break: break-all;
+    border: 1px solid #1D2740; margin-top: 12px;
+  }
+  .logbox:empty::before { content: "任务日志会显示在这里"; color: #4A5570; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(16px);
+    background: rgba(21,24,35,.92); color: #fff; font-size: 13px; padding: 10px 20px;
+    border-radius: 11px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 99;
+    max-width: 70%; word-break: break-all; box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.err { background: rgba(192,54,43,.95); }
+
+  .settings { margin-top: 16px; }
+  .settings .row { gap: 8px; }
+  .settings input { flex: 1; font-size: 12.5px; }
+  .tmpl-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .tmpl-row select { flex: 1; }
+  .counter { text-align: right; color: var(--text-3); font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>📣 抖音粉丝群消息推送</h1>
+    <span class="muted" id="build-tag"></span>
+    <span class="muted">登录态保存在本机 · 全程可视化可接管</span>
+  </header>
+
+  <div class="grid">
+    <!-- 左:会话列表 -->
+    <div class="card">
+      <h3>👥 会话列表 <span class="muted" id="g-meta">群聊 + 好友</span></h3>
+      <div class="row">
+        <button class="btn primary" id="b-refresh">🔄 读取会话列表</button>
+        <button class="btn" id="b-all">全选</button>
+        <button class="btn" id="b-none">清空</button>
+        <span class="meta grow" id="g-time"></span>
+      </div>
+      <input type="text" id="g-search" placeholder="🔍 搜索群 / 好友名称…" style="margin-top:8px;font-size:13px">
+      <div id="group-list" style="margin-top:8px"><div class="empty-hint">点「读取会话列表」从抖音拉取群聊和好友(支持滚动加载全部)<br>未登录时会弹出 Chrome 窗口扫码(只需一次)<br>读取结果会缓存在本机,下次打开直接显示</div></div>
+    </div>
+
+    <!-- 右:消息与发送 -->
+    <div class="card">
+      <h3>✉️ 消息内容</h3>
+      <div class="tmpl-row">
+        <select id="t-select"><option value="">— 选择模板 —</option></select>
+        <button class="btn small" id="t-save">存为模板</button>
+        <button class="btn small danger" id="t-del">删除模板</button>
+      </div>
+      <textarea id="msg" placeholder="输入要推送到粉丝群的消息内容…"></textarea>
+      <div class="counter"><span id="msg-len">0</span> / 2000</div>
+      <button class="btn green" id="b-send" style="margin-top:10px" disabled>🚀 推送到已勾选的会话(<span id="sel-count">0</span>)</button>
+
+      <div class="settings">
+        <div class="row">
+          <span class="meta" style="flex-shrink:0">浏览器:</span>
+          <input type="text" id="browser-path" placeholder="Chrome/Edge 完整路径(留空自动检测)">
+          <button class="btn small" id="b-save-browser">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 消息记录 -->
+  <div class="card" style="margin-top:16px">
+    <h3>📨 消息记录 <span class="muted" id="h-meta"></span>
+      <span class="grow"></span>
+      <input type="text" id="h-search" placeholder="🔍 搜索记录…" style="width:220px;font-size:12.5px">
+      <button class="btn small danger" id="h-clear">清空记录</button>
+    </h3>
+    <div id="h-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)"><div class="empty-hint">还没有发送记录。每次推送的每条消息(成功/失败)都会记录在这里<br>点击某条记录可以把内容填回输入框重新编辑</div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>📋 任务日志</h3>
+    <div class="logbox" id="log"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+const BUILD = '20261118b';
+document.getElementById('build-tag').textContent = 'build ' + BUILD;
+
+const $ = (id) => document.getElementById(id);
+let toastTimer;
+function toast(msg, isErr = false) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.className = ''), 2600);
+}
+
+async function api(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {},
+    ...opts,
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok || d.ok === false) throw new Error(d.error || ('HTTP ' + res.status));
+  return d.data;
+}
+
+let pollTimer = null;
+function pollJob(jobId, onUpdate) {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const j = await api('/api/job/' + jobId);
+      if (onUpdate) onUpdate(j);
+      if (j.status !== 'running') {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        setBusy(false);
+        if (j.status === 'error') toast('任务失败: ' + (j.error || ''), true);
+      }
+    } catch (e) { /* 轮询失败下次再试 */ }
+  }, 1200);
+}
+
+/* ---------------- 状态 ---------------- */
+let state = { groups: [], templates: [], history: [], busy: false };
+
+function setBusy(on) {
+  state.busy = on;
+  $('b-refresh').disabled = on;
+  $('b-send').disabled = on || selected().length === 0;
+  if (!on) $('b-refresh').textContent = '🔄 读取会话列表';
+  else $('b-refresh').textContent = '⏳ 进行中…';
+}
+
+function selected() {
+  return [...document.querySelectorAll('#group-list input:checked')].map((c) => c.dataset.name);
+}
+
+function renderGroups() {
+  const list = $('group-list');
+  if (!state.groups.length) {
+    list.innerHTML = '<div class="empty-hint">点「读取会话列表」从抖音拉取群聊和好友(支持滚动加载全部)<br>未登录时会弹出 Chrome 窗口扫码(只需一次)<br>读取结果会缓存在本机,下次打开直接显示</div>';
+    $('g-meta').textContent = '群聊 + 好友';
+    $('g-time').textContent = '';
+    updateSelCount();
+    return;
+  }
+  const q = ($('g-search').value || '').trim().toLowerCase();
+  const shown = q ? state.groups.filter((g) => g.name.toLowerCase().includes(q)) : state.groups;
+  list.innerHTML = '';
+  shown.forEach((g) => {
+    const row = document.createElement('label');
+    row.className = 'g-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.name = g.name;
+    cb.addEventListener('change', updateSelCount);
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = g.name;
+    name.title = g.name + (g.lastMsg ? '\n最近: ' + g.lastMsg : '');
+    row.appendChild(cb);
+    row.appendChild(name);
+    const b = document.createElement('span');
+    b.className = 'badge' + (g.groupLike ? '' : ' all');
+    b.textContent = g.groupLike ? '群' : '私信';
+    row.appendChild(b);
+    list.appendChild(row);
+  });
+  if (!shown.length) list.innerHTML = '<div class="empty-hint">没有匹配「' + escHtml(q) + '」的会话</div>';
+  $('g-meta').textContent = q ? `筛选 ${shown.length} / 共 ${state.groups.length} 个` : `共 ${state.groups.length} 个(群聊 ${state.groups.filter((g) => g.groupLike).length})`;
+  if (state.cachedAt) $('g-time').textContent = '读取于 ' + new Date(state.cachedAt).toLocaleString('zh-CN', { hour12: false });
+  updateSelCount();
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------------- 消息记录 ---------------- */
+function renderHistory() {
+  const box = $('h-list');
+  const q = ($('h-search').value || '').trim().toLowerCase();
+  const all = [...state.history].sort((a, b) => (b.at || 0) - (a.at || 0));
+  const shown = q ? all.filter((r) => (r.name + ' ' + r.message).toLowerCase().includes(q)) : all;
+  if (!shown.length) {
+    box.innerHTML = '<div class="empty-hint">' + (state.history.length && q ? '没有匹配「' + escHtml(q) + '」的记录' : '还没有发送记录。每次推送的每条消息(成功/失败)都会记录在这里<br>点击某条记录可以把内容填回输入框重新编辑') + '</div>';
+  } else {
+    box.innerHTML = '';
+    for (const r of shown) {
+      const row = document.createElement('div');
+      row.className = 'h-item ' + (r.ok ? 'ok' : 'fail');
+      row.title = (r.ok ? '点击把内容填入输入框' : ('失败原因: ' + (r.error || '未知') + ';点击把内容填入输入框'));
+      const t = document.createElement('span');
+      t.className = 't';
+      t.textContent = new Date(r.at).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const n = document.createElement('span');
+      n.className = 'n';
+      n.textContent = r.name;
+      const st = document.createElement('span');
+      st.className = 'st';
+      st.textContent = r.ok ? '成功' : '失败';
+      const m = document.createElement('span');
+      m.className = 'm';
+      m.textContent = (r.message || '').replace(/\s+/g, ' ').slice(0, 80);
+      row.appendChild(t); row.appendChild(n); row.appendChild(st); row.appendChild(m);
+      row.addEventListener('click', () => {
+        $('msg').value = r.message || '';
+        $('msg-len').textContent = (r.message || '').length;
+        toast('已把该条内容填入输入框,可编辑后重新推送');
+      });
+      box.appendChild(row);
+    }
+  }
+  $('h-meta').textContent = q ? `筛选 ${shown.length} / 共 ${all.length} 条` : (all.length ? `共 ${all.length} 条` : '');
+}
+
+function renderTemplates() {
+  const sel = $('t-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— 选择模板 —</option>' +
+    state.templates.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
+  if (state.templates.some((t) => t.id === cur)) sel.value = cur;
+}
+
+function updateSelCount() {
+  $('sel-count').textContent = selected().length;
+  $('b-send').disabled = state.busy || selected().length === 0;
+}
+
+function renderState() {
+  renderGroups();
+  renderTemplates();
+  renderHistory();
+  setBusy(state.busy);
+  updateSelCount();
+}
+
+/* ---------------- 事件 ---------------- */
+$('b-refresh').onclick = async () => {
+  if (state.busy) return;
+  setBusy(true);
+  try {
+    const { jobId } = await api('/api/refresh', { method: 'POST' });
+    pollJob(jobId, (j) => {
+      $('log').textContent = j.logs.join('\n');
+      $('log').scrollTop = 1e6;
+      if (j.status === 'done' && j.result && Array.isArray(j.result.groups)) {
+        state.groups = j.result.groups;
+        state.cachedAt = j.result.at;
+        renderGroups();
+        toast(`读取到 ${j.result.groups.length} 个会话(群聊 ${j.result.groups.filter((g) => g.groupLike).length})`);
+      }
+    });
+  } catch (e) { toast('读取失败: ' + e.message, true); setBusy(false); }
+};
+
+$('g-search').addEventListener('input', renderGroups);
+$('h-search').addEventListener('input', renderHistory);
+
+$('h-clear').onclick = async () => {
+  if (!state.history.length) return toast('还没有记录');
+  if (!confirm(`确定清空全部 ${state.history.length} 条消息记录?(不影响已发出的消息)`)) return;
+  try {
+    await api('/api/history/clear', { method: 'POST' });
+    state.history = [];
+    renderHistory();
+    toast('记录已清空');
+  } catch (e) { toast('清空失败: ' + e.message, true); }
+};
+
+$('b-all').onclick = () => {
+  document.querySelectorAll('#group-list input').forEach((c) => (c.checked = true));
+  updateSelCount();
+};
+$('b-none').onclick = () => {
+  document.querySelectorAll('#group-list input').forEach((c) => (c.checked = false));
+  updateSelCount();
+};
+
+$('t-select').onchange = () => {
+  const t = state.templates.find((x) => x.id === $('t-select').value);
+  if (t) { $('msg').value = t.content; $('msg-len').textContent = t.content.length; }
+};
+$('t-save').onclick = async () => {
+  const content = $('msg').value.trim();
+  if (!content) return toast('先填写消息内容再保存模板', true);
+  const name = prompt('模板名称:', '模板' + (state.templates.length + 1));
+  if (!name) return;
+  try {
+    const d = await api('/api/templates', { method: 'POST', body: JSON.stringify({ name, content }) });
+    state.templates = d.templates;
+    renderTemplates();
+    toast('模板已保存');
+  } catch (e) { toast('保存失败: ' + e.message, true); }
+};
+$('t-del').onclick = async () => {
+  const id = $('t-select').value;
+  if (!id) return toast('请先选择要删除的模板', true);
+  const t = state.templates.find((x) => x.id === id);
+  if (!confirm(`删除模板「${t.name}」?`)) return;
+  try {
+    const d = await api('/api/templates/delete', { method: 'POST', body: JSON.stringify({ id }) });
+    state.templates = d.templates;
+    renderTemplates();
+    toast('模板已删除');
+  } catch (e) { toast('删除失败: ' + e.message, true); }
+};
+
+$('msg').addEventListener('input', () => ($('msg-len').textContent = $('msg').value.length));
+
+$('b-send').onclick = async () => {
+  const groups = selected();
+  const message = $('msg').value.trim();
+  if (!groups.length) return toast('请先勾选要推送的会话(可用搜索筛选)', true);
+  if (!message) return toast('请先填写消息内容', true);
+  if (!confirm(`确认把这条消息推送到 ${groups.length} 个会话?\n` + '· ' + groups.slice(0, 8).join('\n· ') + (groups.length > 8 ? `\n… 等共 ${groups.length} 个` : ''))) return;
+  setBusy(true);
+  try {
+    const { jobId } = await api('/api/send', { method: 'POST', body: JSON.stringify({ message, groups }) });
+    pollJob(jobId, async (j) => {
+      $('log').textContent = j.logs.join('\n');
+      $('log').scrollTop = 1e6;
+      if (j.status === 'done' && j.result) {
+        toast(`推送完成:成功 ${j.result.ok}/${j.result.total}`);
+        try {
+          const d = await api('/api/history');
+          state.history = d.records || [];
+          renderHistory();
+        } catch { /* 记录刷新失败不影响 */ }
+      }
+    });
+  } catch (e) { toast('发送失败: ' + e.message, true); setBusy(false); }
+};
+
+$('b-save-browser').onclick = async () => {
+  try {
+    await api('/api/config', { method: 'POST', body: JSON.stringify({ browser: $('browser-path').value }) });
+    toast('浏览器路径已保存');
+  } catch (e) { toast('保存失败: ' + e.message, true); }
+};
+
+/* ---------------- 初始化 ---------------- */
+(async () => {
+  try {
+    const d = await api('/api/state');
+    state.groups = d.groups.groups || [];
+    state.cachedAt = d.groups.at;
+    state.templates = d.templates || [];
+    state.history = d.history || [];
+    state.busy = !!d.busy;
+    $('browser-path').value = d.browser || '';
+    renderState();
+  } catch (e) { toast('加载状态失败: ' + e.message, true); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "douyin_push",
+  "version": "1.0.0",
+  "description": "从自媒体工作台抽取出来的独立小工具：给抖音粉丝群一键推送消息。",
+  "main": "server.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright-core": "^1.65.1"
+  }
+}
