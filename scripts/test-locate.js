@@ -4,7 +4,7 @@
 'use strict';
 const jobs = require('../lib/jobs');
 const fg = require('../lib/fangroup');
-const { openIM, panelState } = fg.__test;
+const { openIM, panelState, scrollConvTop } = fg.__test;
 
 (async () => {
   const job = jobs.create('locate-test');
@@ -21,6 +21,8 @@ const { openIM, panelState } = fg.__test;
   }
 
   // 1) 列表视图:定位群 2(对照:此时应能找到)
+  await scrollConvTop(page);
+  await page.waitForTimeout(800);
   let st = await panelState(page, G2);
   console.log('[1] 列表视图定位群2:', JSON.stringify(st));
 
@@ -36,10 +38,13 @@ const { openIM, panelState } = fg.__test;
   if (!st.chat || !st.back) throw new Error('聊天视图未返回返回按钮坐标');
 
   // 4) 真实点击返回按钮 → 应回到列表
+  console.log('   点击返回按钮:', JSON.stringify(st.back));
   await page.mouse.click(st.back.x, st.back.y);
   await page.waitForTimeout(2000);
 
-  // 5) 再次定位群 2 → 应找到会话行(线上失败点)
+  // 5) 再次定位群 2 → 应找到会话行(线上失败点:返回按钮点错位置导致仍停在聊天视图)
+  await scrollConvTop(page).catch(() => { });
+  await page.waitForTimeout(800);
   st = await panelState(page, G2);
   console.log('[3] 返回列表后定位群2:', JSON.stringify(st));
 
