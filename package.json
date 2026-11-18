@@ -1,7 +1,10 @@
 {
   "name": "douyin_push",
-  "version": "1.0.0",
-  "description": "从自媒体工作台抽取出来的独立小工具：给抖音粉丝群一键推送消息。",
+  "version": "1.1.0",
+  "description": "抖音群聊/私信批量消息推送工具(本地 RPA)",
+  "engines": {
+    "node": ">=18"
+  },
   "main": "server.js",
   "directories": {
     "lib": "lib"

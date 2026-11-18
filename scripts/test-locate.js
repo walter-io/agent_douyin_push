@@ -1,17 +1,24 @@
 // 粉丝群发送定位回归测试:复现「发完第 1 个群后,抽屉停在聊天视图,第 2 个群找不到」的场景。
 // 只做定位与导航,不输入、不发送任何消息。
-// 用法:node scripts/test-locate.js [群1名] [群2名]
+// 用法:node scripts/test-locate.js [会话1名] [会话2名]  (不传参数则取会话列表前两个)
 'use strict';
 const jobs = require('../lib/jobs');
 const fg = require('../lib/fangroup');
 const { openIM, panelState } = fg.__test;
 
-const G1 = process.argv[2] || '阿川和朋友们的AI交流群';
-const G2 = process.argv[3] || '阿川和朋友们的AI交流群2️⃣';
-
 (async () => {
   const job = jobs.create('locate-test');
   const { ctx, page } = await openIM(job);
+
+  let G1 = process.argv[2];
+  let G2 = process.argv[3];
+  if (!G1 || !G2) {
+    const convs = await fg.__test.readConversations(page, job);
+    if (convs.rows.length < 2) throw new Error('会话不足 2 个,请用参数指定:node scripts/test-locate.js [会话1名] [会话2名]');
+    G1 = G1 || convs.rows[0].name;
+    G2 = G2 || convs.rows[1].name;
+    console.log(`未指定参数,使用前两个会话:「${G1}」「${G2}」`);
+  }
 
   // 1) 列表视图:定位群 2(对照:此时应能找到)
   let st = await panelState(page, G2);

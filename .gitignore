@@ -1,6 +1,9 @@
 # 依赖
 node_modules/
 
+# 编辑器/工具元数据
+.zcode/
+
 # 运行数据(含抖音登录态 profile、消息记录、会话缓存、模板，禁止上传)
 data/*
 !data/.gitkeep

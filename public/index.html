@@ -106,12 +106,32 @@
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   #toast.err { background: rgba(192,54,43,.95); }
 
-  .settings { margin-top: 16px; }
-  .settings .row { gap: 8px; }
-  .settings input { flex: 1; font-size: 12.5px; }
   .tmpl-row { display: flex; gap: 8px; margin-bottom: 10px; }
   .tmpl-row select { flex: 1; }
   .counter { text-align: right; color: var(--text-3); font-size: 12px; margin-top: 4px; }
+  .btn.stop { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; padding: 10px 16px; font-size: 14px; width: 100%; margin-top: 8px; }
+  .btn.stop:hover { filter: brightness(1.08); color: #fff; }
+
+  /* 设置弹窗 */
+  #modal-mask {
+    position: fixed; inset: 0; background: rgba(15,18,28,.45); z-index: 90;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  #modal-mask.show { display: flex; }
+  #modal {
+    background: var(--surface); border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.22);
+    width: 460px; max-width: 100%; max-height: 88vh; overflow-y: auto; padding: 20px;
+  }
+  #modal h3 { font-size: 15px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  #modal label { display: block; font-size: 12px; color: var(--text-2); margin-top: 10px; }
+  #modal label input, #modal label select { margin-top: 4px; font-size: 13px; }
+  #modal .set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  #modal .set-grid label { margin-top: 10px; }
+  #modal .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); margin-top: 14px; }
+  #modal .chk input { width: 15px; height: 15px; accent-color: var(--accent); margin: 0; }
+  #modal .divider { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border-strong); font-size: 12px; color: var(--text-3); line-height: 1.6; }
+  #modal .hint { font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 </style>
 </head>
 <body>
@@ -120,6 +140,8 @@
     <h1>📣 抖音粉丝群消息推送</h1>
     <span class="muted" id="build-tag"></span>
     <span class="muted">登录态保存在本机 · 全程可视化可接管</span>
+    <span class="grow"></span>
+    <button class="btn small" id="b-settings">⚙️ 设置</button>
   </header>
 
   <div class="grid">
@@ -141,20 +163,14 @@
       <h3>✉️ 消息内容</h3>
       <div class="tmpl-row">
         <select id="t-select"><option value="">— 选择模板 —</option></select>
+        <button class="btn small" id="b-ai" title="调用 AI 接口润色消息(需在设置里配置)">✨ AI 润色</button>
         <button class="btn small" id="t-save">存为模板</button>
         <button class="btn small danger" id="t-del">删除模板</button>
       </div>
       <textarea id="msg" placeholder="输入要推送到粉丝群的消息内容…"></textarea>
       <div class="counter"><span id="msg-len">0</span> / 2000</div>
       <button class="btn green" id="b-send" style="margin-top:10px" disabled>🚀 推送到已勾选的会话(<span id="sel-count">0</span>)</button>
-
-      <div class="settings">
-        <div class="row">
-          <span class="meta" style="flex-shrink:0">浏览器:</span>
-          <input type="text" id="browser-path" placeholder="Chrome/Edge 完整路径(留空自动检测)">
-          <button class="btn small" id="b-save-browser">保存</button>
-        </div>
-      </div>
+      <button class="btn stop" id="b-stop" style="display:none">⏹ 停止当前任务</button>
     </div>
   </div>
 
@@ -176,9 +192,47 @@
 
 <div id="toast"></div>
 
+<!-- 设置弹窗 -->
+<div id="modal-mask">
+  <div id="modal">
+    <h3>⚙️ 设置</h3>
+    <label>浏览器路径(留空自动检测 Chrome,无则用 Edge)
+      <input type="text" id="set-browser" placeholder="Chrome/Edge 完整路径">
+    </label>
+    <div class="set-grid">
+      <label>发送间隔(秒,1-60)
+        <input type="number" id="set-delay" min="1" max="60">
+      </label>
+      <label>随机抖动(±秒,0-10)
+        <input type="number" id="set-jitter" min="0" max="10">
+      </label>
+    </div>
+    <div class="hint">每个会话实际间隔 = 发送间隔 ± 随机抖动,让发送节奏更接近人工</div>
+    <label class="chk"><input type="checkbox" id="set-autoclose"> 任务完成后自动关闭自动化浏览器</label>
+
+    <div class="divider">AI 接口(可选,OpenAI 兼容格式,用于「✨ AI 润色」;API Key 只保存在本机 data/config.json,不会上传)</div>
+    <label>Base URL
+      <input type="text" id="set-ai-url" placeholder="例: https://api.deepseek.com/v1">
+    </label>
+    <div class="set-grid">
+      <label>API Key(留空 = 不修改)
+        <input type="password" id="set-ai-key" placeholder="sk-...">
+      </label>
+      <label>模型
+        <input type="text" id="set-ai-model" placeholder="例: deepseek-chat / gpt-4o-mini">
+      </label>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn" id="set-cancel">取消</button>
+      <button class="btn primary" id="set-save">保存</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
-const BUILD = '20261118b';
+const BUILD = '20261118c';
 document.getElementById('build-tag').textContent = 'build ' + BUILD;
 
 const $ = (id) => document.getElementById(id);
@@ -202,11 +256,15 @@ async function api(url, opts = {}) {
 }
 
 let pollTimer = null;
+let currentJobId = null;
 function pollJob(jobId, onUpdate) {
+  currentJobId = jobId;
   clearInterval(pollTimer);
+  let miss = 0; // 连续查询失败计数:任务被服务端挤出/服务重启后不能无限轮询
   pollTimer = setInterval(async () => {
     try {
       const j = await api('/api/job/' + jobId);
+      miss = 0;
       if (onUpdate) onUpdate(j);
       if (j.status !== 'running') {
         clearInterval(pollTimer);
@@ -214,19 +272,28 @@ function pollJob(jobId, onUpdate) {
         setBusy(false);
         if (j.status === 'error') toast('任务失败: ' + (j.error || ''), true);
       }
-    } catch (e) { /* 轮询失败下次再试 */ }
+    } catch (e) {
+      if (++miss >= 5) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        setBusy(false);
+        toast('任务状态查询失败,已停止轮询(服务可能已重启)', true);
+      }
+    }
   }, 1200);
 }
 
 /* ---------------- 状态 ---------------- */
-let state = { groups: [], templates: [], history: [], busy: false };
+let state = { groups: [], templates: [], history: [], busy: false, cfg: {} };
 
 function setBusy(on) {
   state.busy = on;
   $('b-refresh').disabled = on;
   $('b-send').disabled = on || selected().length === 0;
-  if (!on) $('b-refresh').textContent = '🔄 读取会话列表';
-  else $('b-refresh').textContent = '⏳ 进行中…';
+  $('b-stop').style.display = on ? '' : 'none';
+  $('b-stop').disabled = false;
+  $('b-refresh').textContent = on ? '⏳ 进行中…' : '🔄 读取会话列表';
+  if (!on) currentJobId = null;
 }
 
 function selected() {
@@ -316,7 +383,7 @@ function renderTemplates() {
   const sel = $('t-select');
   const cur = sel.value;
   sel.innerHTML = '<option value="">— 选择模板 —</option>' +
-    state.templates.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
+    state.templates.map((t) => `<option value="${escHtml(t.id)}">${escHtml(t.name)}</option>`).join('');
   if (state.templates.some((t) => t.id === cur)) sel.value = cur;
 }
 
@@ -419,7 +486,10 @@ $('b-send').onclick = async () => {
       $('log').textContent = j.logs.join('\n');
       $('log').scrollTop = 1e6;
       if (j.status === 'done' && j.result) {
-        toast(`推送完成:成功 ${j.result.ok}/${j.result.total}`);
+        const r = j.result;
+        toast(r.cancelled
+          ? `⏹ 已停止:成功 ${r.ok}/${r.total}${r.skipped ? `,剩余 ${r.skipped} 个未发送` : ''}`
+          : `推送完成:成功 ${r.ok}/${r.total}`);
         try {
           const d = await api('/api/history');
           state.history = d.records || [];
@@ -430,12 +500,83 @@ $('b-send').onclick = async () => {
   } catch (e) { toast('发送失败: ' + e.message, true); setBusy(false); }
 };
 
-$('b-save-browser').onclick = async () => {
+/* ---------------- 停止当前任务 ---------------- */
+$('b-stop').onclick = async () => {
+  if (!currentJobId) return;
+  $('b-stop').disabled = true;
   try {
-    await api('/api/config', { method: 'POST', body: JSON.stringify({ browser: $('browser-path').value }) });
-    toast('浏览器路径已保存');
+    await api('/api/job/' + currentJobId + '/cancel', { method: 'POST' });
+    toast('⏹ 停止请求已发出,当前步骤完成后停止…');
+  } catch (e) {
+    toast('停止失败: ' + e.message, true);
+    $('b-stop').disabled = false;
+  }
+};
+
+/* ---------------- AI 润色 ---------------- */
+$('b-ai').onclick = async () => {
+  const message = $('msg').value.trim();
+  if (!message) return toast('先填写消息内容再润色', true);
+  if (!state.cfg.aiConfigured) {
+    openSettings();
+    return toast('请先在设置里配置 AI 接口(Base URL + API Key)', true);
+  }
+  $('b-ai').disabled = true;
+  $('b-ai').textContent = '⏳ 润色中…';
+  try {
+    const d = await api('/api/ai/polish', { method: 'POST', body: JSON.stringify({ message }) });
+    $('msg').value = d.message;
+    $('msg-len').textContent = d.message.length;
+    toast('✨ AI 润色完成,可继续编辑或直接推送');
+  } catch (e) { toast('润色失败: ' + e.message, true); }
+  $('b-ai').disabled = false;
+  $('b-ai').textContent = '✨ AI 润色';
+};
+
+/* ---------------- 设置弹窗 ---------------- */
+function openSettings() {
+  $('set-browser').value = state.cfg.browser || '';
+  $('set-delay').value = state.cfg.sendDelaySec ?? 4;
+  $('set-jitter').value = state.cfg.jitterSec ?? 2;
+  $('set-autoclose').checked = state.cfg.autoCloseBrowser !== false;
+  $('set-ai-url').value = state.cfg.aiBaseUrl || '';
+  $('set-ai-key').value = ''; // Key 不回传前端,留空表示不修改
+  $('set-ai-model').value = state.cfg.aiModel || '';
+  $('modal-mask').classList.add('show');
+}
+function closeSettings() { $('modal-mask').classList.remove('show'); }
+
+$('b-settings').onclick = openSettings;
+$('set-cancel').onclick = closeSettings;
+$('modal-mask').addEventListener('click', (e) => { if (e.target === $('modal-mask')) closeSettings(); });
+
+$('set-save').onclick = async () => {
+  const body = {
+    browser: $('set-browser').value,
+    sendDelaySec: Number($('set-delay').value) || 4,
+    jitterSec: Number($('set-jitter').value) || 0,
+    autoCloseBrowser: $('set-autoclose').checked,
+    aiBaseUrl: $('set-ai-url').value,
+    aiModel: $('set-ai-model').value,
+  };
+  const key = $('set-ai-key').value.trim();
+  if (key) body.aiApiKey = key;
+  try {
+    const d = await api('/api/config', { method: 'POST', body: JSON.stringify(body) });
+    Object.assign(state.cfg, d);
+    closeSettings();
+    toast('设置已保存');
   } catch (e) { toast('保存失败: ' + e.message, true); }
 };
+
+/* ---------------- 多标签页 busy 状态同步 ---------------- */
+setInterval(async () => {
+  if (pollTimer) return; // 本页有任务在跑,以本页轮询为准
+  try {
+    const d = await api('/api/state');
+    if (!!d.busy !== !!state.busy) setBusy(!!d.busy);
+  } catch { /* 服务未就绪时静默 */ }
+}, 10000);
 
 /* ---------------- 初始化 ---------------- */
 (async () => {
@@ -445,8 +586,16 @@ $('b-save-browser').onclick = async () => {
     state.cachedAt = d.groups.at;
     state.templates = d.templates || [];
     state.history = d.history || [];
+    state.cfg = {
+      browser: d.browser || '',
+      sendDelaySec: typeof d.sendDelaySec === 'number' ? d.sendDelaySec : 4,
+      jitterSec: typeof d.jitterSec === 'number' ? d.jitterSec : 2,
+      autoCloseBrowser: d.autoCloseBrowser !== false,
+      aiBaseUrl: '',
+      aiModel: '',
+      aiConfigured: !!d.aiConfigured,
+    };
     state.busy = !!d.busy;
-    $('browser-path').value = d.browser || '';
     renderState();
   } catch (e) { toast('加载状态失败: ' + e.message, true); }
 })();
